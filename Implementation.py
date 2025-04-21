@@ -1250,4 +1250,4 @@ results = generate_comprehensive_counterfactuals(model, test_loader, num_samples
 print("\nVisualizing results for each class...")
 visualize_comprehensive_results(results)
 
-#all works
+#everything  works
