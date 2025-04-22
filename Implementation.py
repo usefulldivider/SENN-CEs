@@ -1251,3 +1251,97 @@ print("\nVisualizing results for each class...")
 visualize_comprehensive_results(results)
 
 #everything  works
+
+# SENN Concepts Visualization :
+
+def visualize_concept_attributions(model, test_loader, num_samples=10):
+    """
+    Visualize what image features each concept is detecting using gradient-based attribution
+
+    Bright colors (red/yellow in jet colormap) indicate strong influence on that concept.
+
+    This is gradient-based attribution
+    
+    Args:
+        model: The trained SENN model
+        test_loader: DataLoader for test data
+        num_samples: Number of samples to visualize
+    """
+    model.eval()
+    device = next(model.parameters()).device
+    
+    # Get some test images
+    dataiter = iter(test_loader)
+    images, labels = next(dataiter)
+    images = images[:num_samples].to(device)
+    labels = labels[:num_samples]
+    
+    num_concepts = model.conceptizer.num_concepts
+    
+    # Create figure
+    fig, axes = plt.subplots(num_samples, num_concepts + 2, figsize=(3 * (num_concepts + 2), 3 * num_samples))
+    
+    for i in range(num_samples):
+        # Enable gradients for attribution
+        image = images[i:i+1].clone().detach().requires_grad_(True)
+        
+        # Forward pass
+        with torch.enable_grad():
+            concepts, _ = model.conceptizer(image)
+            preds, (_, relevances), _ = model(image)
+            _, predicted = torch.max(preds.data, 1)
+        
+        # Display original image
+        axes[i, 0].imshow(image[0, 0].cpu().detach().numpy(), cmap='gray')
+        axes[i, 0].set_title(f'Original\nTrue: {labels[i]}, Pred: {predicted[0]}')
+        axes[i, 0].axis('off')
+        
+        # Concept relevance bar chart
+        concept_values = concepts[0, :, 0].cpu().detach().numpy()
+        relevance_values = relevances[0, :, predicted[0]].cpu().detach().numpy()
+        weighted_concepts = concept_values * relevance_values
+        
+        axes[i, 1].barh(range(num_concepts), weighted_concepts)
+        axes[i, 1].set_title(f'Concept Relevances')
+        axes[i, 1].set_yticks(range(num_concepts))
+        axes[i, 1].set_yticklabels([f'C{j}' for j in range(num_concepts)])
+        
+        # For each concept, compute attribution
+        for j in range(num_concepts):
+            # Zero all gradients
+            if image.grad is not None:
+                image.grad.zero_()
+            
+            # Backprop to input for this concept
+            concept_value = concepts[0, j, 0]
+            concept_value.backward(retain_graph=True)
+            
+            # Get gradients and normalize for visualization
+            attribution = image.grad[0, 0].cpu().detach().numpy()
+            
+            # Normalize attribution
+            attribution = np.abs(attribution)
+            attribution = attribution / attribution.max() if attribution.max() > 0 else attribution
+            
+            # Overlay attribution on image
+            image_np = image[0, 0].cpu().detach().numpy()
+            
+            # Create heatmap
+            axes[i, j + 2].imshow(image_np, cmap='gray', alpha=0.8)
+            c_map = axes[i, j + 2].imshow(attribution, cmap='jet', alpha=0.5)
+            
+            # Add colorbar
+            plt.colorbar(c_map, ax=axes[i, j + 2], fraction=0.046, pad=0.04)
+            
+            # Set title and add concept value info
+            concept_val = concept_values[j]
+            relevance_val = relevance_values[j]
+            axes[i, j + 2].set_title(f'Concept {j}\nValue: {concept_val:.2f}\nRel: {relevance_val:.2f}')
+            axes[i, j + 2].axis('off')
+    
+    plt.tight_layout()
+    return fig
+
+# Example usage
+visualize_concept_attributions(model, test_loader)
+plt.show()
