@@ -59,6 +59,10 @@ Class 2→9: L2=9.57; Sparsity=41.3%; Concept Δ=-1.83<br>
 
 And similar outputs for the rest of the classes.
 
+# visualizing the Concepts 
+![image](https://github.com/user-attachments/assets/365bb6b6-5b8e-4702-8c8e-6bc591c250ab)
+
+
 # References : 
 
 Alvarez-Melis & Jaakkola (2018) - Towards Robust Interpretability with Self-Explaining Neural Networks
